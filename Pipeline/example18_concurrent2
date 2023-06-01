@@ -1,0 +1,62 @@
+// https://www.jenkins.io/doc/book/pipeline/syntax/
+
+import jenkins.model.*
+
+collectBuildEnv = [:] // empty map
+
+
+@NonCPS
+def getNodes(String label) {
+    jenkins.model.Jenkins.instance.nodes.collect { thisAgent ->
+        if (thisAgent.labelString.contains("${label}")) {
+            return thisAgent.name
+        }
+    }
+}
+
+
+def dumpBuildEnv(String agentName) {
+    node("${agentName}") {
+        currentBuild.displayName = "${BUILD_ID} - ${JOB_NAME} - ${NODE_NAME}"
+        stage("Env in ${agentName}") {
+            echo "Running on agent, ${agentName}"
+            sh 'sleep 10'
+        }
+    }
+}
+
+
+def processTask() {
+    def nodeList = getNodes(env['concurrent_nodes'])
+    
+    for(i=0; i<nodeList.size(); i++) {
+        def agentName = nodeList[i]
+        
+        if (agentName != null) {
+            println "Preparing node block for " + agentName
+            collectBuildEnv["node_" + agentName] = {
+                dumpBuildEnv(agentName)
+            }
+        }
+    }
+}
+
+pipeline {
+    agent {
+        label "cliente2"
+    }
+    environment {
+        concurrent_nodes = "linux"
+    }      
+    stages {
+        stage('Stage paralelo') {
+            
+            steps {
+                script {
+                    processTask()
+                    parallel collectBuildEnv
+                }
+            }
+        }
+    }
+}
