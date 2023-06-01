@@ -24,9 +24,7 @@ pipeline {
         }
         stage('Stage 2') {
             steps {
-                script {
-                    customBuildName()
-                }                   
+                  
                 echo 'Hello stage 2'
             }
         }      
